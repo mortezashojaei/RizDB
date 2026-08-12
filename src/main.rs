@@ -9,14 +9,12 @@ fn main() {
         Ok(c) => c,
         Err(msg) => {
             eprintln!("rizdb: {msg}");
-            eprintln!(
-                "usage: rizdb [--host HOST] [--port PORT] [--data-dir DIR] [--fsync-ms MS]"
-            );
+            eprintln!("usage: rizdb [--host HOST] [--port PORT] [--data-dir DIR] [--fsync-ms MS]");
             process::exit(2);
         }
     };
     if let Err(err) = server::serve(config) {
-        eprintln!("rizdb: failed to serve: {err:?}");
+        eprintln!("rizdb: failed to serve: {err}");
         process::exit(1);
     }
 }
@@ -55,9 +53,7 @@ fn parse_config(args: impl IntoIterator<Item = String>) -> Result<Config, String
             }
             "--fsync-ms" => {
                 let v = args.next().ok_or("missing value for --fsync-ms")?;
-                config.fsync_ms = v
-                    .parse()
-                    .map_err(|_| format!("invalid --fsync-ms: {v}"))?;
+                config.fsync_ms = v.parse().map_err(|_| format!("invalid --fsync-ms: {v}"))?;
             }
             other => return Err(format!("unknown argument: {other}")),
         }

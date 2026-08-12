@@ -1,13 +1,12 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use crate::session::{self, ParseError};
-use crate::store::Store;
+use crate::store::{self, Store};
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -28,25 +27,20 @@ impl Default for Config {
     }
 }
 
-pub fn serve(config: Config) -> crate::store::Result<()> {
+pub fn serve(config: Config) -> store::Result<()> {
     let store = Store::open(&config.data_dir)?;
     let store = Arc::new(Mutex::new(store));
-    let running = Arc::new(AtomicBool::new(true));
 
     let fsync_store = Arc::clone(&store);
-    let fsync_running = Arc::clone(&running);
     let interval = Duration::from_millis(config.fsync_ms);
-    thread::spawn(move || {
-        while fsync_running.load(Ordering::Relaxed) {
-            thread::sleep(interval);
-            if let Ok(mut guard) = fsync_store.lock() {
-                let _ = guard.sync();
-            }
+    thread::spawn(move || loop {
+        thread::sleep(interval);
+        if let Ok(mut guard) = fsync_store.lock() {
+            let _ = guard.sync();
         }
     });
 
-    let addr = format!("{}:{}", config.host, config.port);
-    let listener = TcpListener::bind(addr)?;
+    let listener = TcpListener::bind((config.host.as_str(), config.port))?;
     for stream in listener.incoming() {
         let Ok(stream) = stream else {
             continue;
@@ -56,11 +50,11 @@ pub fn serve(config: Config) -> crate::store::Result<()> {
             let _ = handle_client(stream, store);
         });
     }
-    running.store(false, Ordering::Relaxed);
     Ok(())
 }
 
-fn handle_client(mut stream: TcpStream, store: Arc<Mutex<Store>>) -> crate::store::Result<()> {
+fn handle_client(mut stream: TcpStream, store: Arc<Mutex<Store>>) -> store::Result<()> {
+    let _ = stream.set_nodelay(true);
     let mut buf = Vec::new();
     let mut read_buf = [0u8; 4096];
     loop {

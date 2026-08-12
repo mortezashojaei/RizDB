@@ -1,61 +1,9 @@
-use std::collections::HashMap;
-
-use crate::store::{self, check_sizes, Store, StoreError};
+use crate::store::{self, KvStore, StoreError};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseError {
     Incomplete,
     Invalid(&'static str),
-}
-
-pub trait KvStore {
-    fn get(&mut self, key: &[u8]) -> store::Result<Option<Vec<u8>>>;
-    fn set(&mut self, key: &[u8], value: &[u8]) -> store::Result<()>;
-    fn del(&mut self, key: &[u8]) -> store::Result<usize>;
-    fn exists(&self, key: &[u8]) -> bool;
-}
-
-#[derive(Default)]
-pub struct MemoryStore {
-    map: HashMap<Vec<u8>, Vec<u8>>,
-}
-
-impl KvStore for MemoryStore {
-    fn get(&mut self, key: &[u8]) -> store::Result<Option<Vec<u8>>> {
-        Ok(self.map.get(key).cloned())
-    }
-
-    fn set(&mut self, key: &[u8], value: &[u8]) -> store::Result<()> {
-        check_sizes(key, value)?;
-        self.map.insert(key.to_vec(), value.to_vec());
-        Ok(())
-    }
-
-    fn del(&mut self, key: &[u8]) -> store::Result<usize> {
-        Ok(usize::from(self.map.remove(key).is_some()))
-    }
-
-    fn exists(&self, key: &[u8]) -> bool {
-        self.map.contains_key(key)
-    }
-}
-
-impl KvStore for Store {
-    fn get(&mut self, key: &[u8]) -> store::Result<Option<Vec<u8>>> {
-        Store::get(self, key)
-    }
-
-    fn set(&mut self, key: &[u8], value: &[u8]) -> store::Result<()> {
-        Store::set(self, key, value)
-    }
-
-    fn del(&mut self, key: &[u8]) -> store::Result<usize> {
-        Store::del(self, key)
-    }
-
-    fn exists(&self, key: &[u8]) -> bool {
-        Store::exists(self, key)
-    }
 }
 
 /// Parse one RESP2 Array-of-Bulk-Strings command.
@@ -121,7 +69,12 @@ pub fn dispatch(store: &mut impl KvStore, args: &[Vec<u8>]) -> store::Result<Vec
     };
     let cmd = cmd.to_ascii_uppercase();
     match cmd.as_slice() {
-        b"PING" => Ok(simple("PONG")),
+        b"PING" => {
+            if args.len() != 1 {
+                return Ok(error("wrong number of arguments for 'PING'"));
+            }
+            Ok(simple("PONG"))
+        }
         b"GET" => {
             if args.len() != 2 {
                 return Ok(error("wrong number of arguments for 'GET'"));

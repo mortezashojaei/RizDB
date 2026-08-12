@@ -1,6 +1,5 @@
 mod common;
 
-use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
@@ -66,7 +65,7 @@ fn start_server(port: u16, data_dir: &str) -> Child {
 fn smoke_set_get_survives_restart() {
     let dir = temp_data_dir("rizdb-smoke");
     let port = free_port();
-    let dir_str = dir.to_str().unwrap();
+    let dir_str = dir.as_ref().to_str().unwrap();
 
     let mut child = start_server(port, dir_str);
     wait_for_port(port);
@@ -88,14 +87,13 @@ fn smoke_set_get_survives_restart() {
 
     let _ = child.kill();
     let _ = child.wait();
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn concurrent_clients_see_consistent_values() {
     let dir = temp_data_dir("rizdb-smoke");
     let port = free_port();
-    let mut child = start_server(port, dir.to_str().unwrap());
+    let mut child = start_server(port, dir.as_ref().to_str().unwrap());
     wait_for_port(port);
 
     let barrier = Arc::new(Barrier::new(3));
@@ -144,5 +142,4 @@ fn concurrent_clients_see_consistent_values() {
 
     let _ = child.kill();
     let _ = child.wait();
-    let _ = fs::remove_dir_all(&dir);
 }

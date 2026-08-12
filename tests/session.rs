@@ -1,11 +1,18 @@
-use rizdb::session::{dispatch, MemoryStore, parse_command};
-use rizdb::store::{MAX_KEY_LEN, MAX_VALUE_LEN};
+use rizdb::session::{dispatch, parse_command};
+use rizdb::store::{MemoryStore, MAX_KEY_LEN, MAX_VALUE_LEN};
 
 #[test]
 fn ping_returns_pong() {
     let mut store = MemoryStore::default();
     let reply = dispatch(&mut store, &[b"PING".to_vec()]).unwrap();
     assert_eq!(reply, b"+PONG\r\n");
+}
+
+#[test]
+fn ping_rejects_extra_arguments() {
+    let mut store = MemoryStore::default();
+    let reply = dispatch(&mut store, &[b"PING".to_vec(), b"x".to_vec()]).unwrap();
+    assert_eq!(reply, b"-ERR wrong number of arguments for 'PING'\r\n");
 }
 
 #[test]
@@ -58,11 +65,7 @@ fn get_missing_returns_null_bulk() {
 #[test]
 fn del_and_exists_semantics() {
     let mut store = MemoryStore::default();
-    dispatch(
-        &mut store,
-        &[b"SET".to_vec(), b"k".to_vec(), b"v".to_vec()],
-    )
-    .unwrap();
+    dispatch(&mut store, &[b"SET".to_vec(), b"k".to_vec(), b"v".to_vec()]).unwrap();
 
     let exists = dispatch(&mut store, &[b"EXISTS".to_vec(), b"k".to_vec()]).unwrap();
     assert_eq!(exists, b":1\r\n");
