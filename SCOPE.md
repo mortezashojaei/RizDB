@@ -1,4 +1,4 @@
-# Crumb — project scope
+# RizDB — project scope
 
 A tiny **disk-based database server** that apps connect to over the network.
 

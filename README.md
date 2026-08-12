@@ -1,4 +1,4 @@
-# Crumb
+# RizDB
 
 Tiny disk-based database server.
 
